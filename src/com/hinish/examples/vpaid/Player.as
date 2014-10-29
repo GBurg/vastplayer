@@ -1,0 +1,134 @@
+package com.hinish.examples.vpaid
+{
+    import flash.system.Security;
+    import com.hinish.spec.iab.vpaid.AdEvent;
+    import com.hinish.spec.iab.vpaid.AdViewMode;
+
+    import flash.display.DisplayObject;
+    import flash.display.Loader;
+    import flash.display.MovieClip;
+    import flash.display.StageAlign;
+    import flash.display.StageScaleMode;
+    import flash.events.Event;
+    import flash.events.IOErrorEvent;
+    import flash.net.URLRequest;
+    import flash.system.ApplicationDomain;
+    import flash.system.LoaderContext;
+    import flash.system.SecurityDomain;
+    import flash.utils.describeType;
+
+    [SWF(width = "720", height = "480", backgroundColor = "#00FFFF")]
+    public class Player extends MovieClip
+    {
+        private const VPAID_VERSION:String = "2.0";
+				private static const AD_URL:String = "http://server.cpmstar.com/cached/creatives/256836/300x250.swf";
+
+        private var _loader:Loader;
+
+        private var _ad:Object;
+
+        private var _adVPAIDVersion:String;
+
+        private var _adStartRequested:Boolean = false;
+
+        public function Player()
+        {
+            super();
+
+            if (stage)
+            {
+                // Only do these if this is the top-level SWF.
+                stage.align = StageAlign.TOP_LEFT;
+                stage.scaleMode = StageScaleMode.NO_SCALE;
+
+                createLoader();
+            }
+            else
+            {
+                addEventListener(Event.ADDED_TO_STAGE, temp);
+            }
+        }
+        private function temp(e:Event):void {
+          removeEventListener(Event.ADDED_TO_STAGE, temp);
+        	createLoader();
+        }
+
+        private function createLoader():void
+        {
+            _loader = new Loader();
+            _loader.contentLoaderInfo.addEventListener(Event.COMPLETE, completeHandler);
+            _loader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
+            
+            var context:LoaderContext;
+            if (Security.sandboxType == Security.REMOTE) {
+			        context = new LoaderContext(true, ApplicationDomain.currentDomain, SecurityDomain.currentDomain);
+			      } else {
+			        context = null;
+			      }
+            
+            _loader.load(new URLRequest(AD_URL), context);
+        }
+
+        private function errorHandler(event:Event):void
+        {
+            // Just kill the event for this example.
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+
+        private function completeHandler(event:Event):void
+        {
+            _loader.contentLoaderInfo.removeEventListener(Event.COMPLETE, completeHandler);
+            if (_loader.content)
+            {
+                _ad = _loader.content;
+            }
+            processAd();
+        }
+
+        private function processAd():void
+        {
+            if (_ad)
+            {
+                if (_ad.hasOwnProperty("handshakeVersion"))
+                {
+                    _adVPAIDVersion = _ad.handshakeVersion(VPAID_VERSION);
+                }
+                // Just assuming it's a IEventDispatcher. 
+                _ad.addEventListener(AdEvent.AD_LOADED, adLoadedHandler);
+                _ad.addEventListener(AdEvent.AD_REMAINING_TIME_CHANGE, adRemainingTimeChangeHandler);
+
+                if (_ad.hasOwnProperty("initAd"))
+                {
+                    _ad.initAd(stage.stageWidth - 40, stage.stageHeight - 40, AdViewMode.NORMAL, 4800, "", "");
+                }
+            }
+        }
+
+        private function startAd():void
+        {
+            if (!_adStartRequested)
+            {
+                _ad.x = 20;
+                _ad.y = 20;
+                addChild(_ad as DisplayObject);
+                _adStartRequested = true;
+                _ad.startAd();
+            }
+        }
+
+        private function adLoadedHandler(event:Event):void
+        {
+            trace("PLAYER >> AD LOADED");
+            startAd();
+        }
+
+
+
+        private function adRemainingTimeChangeHandler(event:Event):void
+        {
+            var x:XML = describeType(_ad);
+            startAd();
+        }
+    }
+}
