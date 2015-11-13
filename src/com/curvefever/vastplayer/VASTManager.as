@@ -21,10 +21,14 @@ package com.curvefever.vastplayer {
   /**
    * @author Geert
    */
+  [Event(name="vm_LOADED", type="com.curvefever.vastplayer.VASTManager")]
+  [Event(name="vm_NOADS", type="com.curvefever.vastplayer.VASTManager")]
+  [Event(name="vm_ERROR", type="com.curvefever.vastplayer.VASTManager")]
   public class VASTManager extends EventDispatcher {
     
-    public static const LOADED:String = "Loaded";
-    public static const NOADS:String = "NOADS";
+    public static const LOADED:String = "vm_LOADED";
+    public static const NOADS:String = "vm_NOADS";
+    public static const ERROR:String = "vm_ERROR";
     
     private var _url:String;
     private var _vmaxd:int;
@@ -68,13 +72,24 @@ package com.curvefever.vastplayer {
       try {
       	_vastUrlLoader.load(_vastUrlRequest);
       } catch (e:Error) {
-        TestUtils.log("manager - load - error: "+e.toString());
+        onUrlLoadError(e);
+      }
+    }
+    private function onUrlLoadError(e:Error):void {
+      TestUtils.log("manager - onUrlLoadError - "+e);
+      if (_parent == null){
+      	trace(e.toString());
+        dispatchEvent(new Event(VASTManager.ERROR));
+      } else {
+        _parent.onUrlLoadError(e);
       }
     }
     private function onSecurityError(e:SecurityErrorEvent):void {
       TestUtils.log("manager - onSecurityError - "+e);
       if (_parent == null){
-      	
+      	trace(e.toString());
+        dispatchEvent(new Event(VASTManager.ERROR));
+        //dispatchEvent(new SecurityErrorEvent(e.type,e.bubbles,e.cancelable,e.text));
       } else {
         _parent.onSecurityError(e);
       }
@@ -87,6 +102,8 @@ package com.curvefever.vastplayer {
       TestUtils.log("manager - onUrlErrorAction - "+e.toString());
       if (_parent == null){
       	trace(e.toString());
+        dispatchEvent(new Event(VASTManager.ERROR));
+        //dispatchEvent(new IOErrorEvent(e.type,e.bubbles,e.cancelable,e.text));
       } else {
         _parent.onUrlErrorAction(e);
       }

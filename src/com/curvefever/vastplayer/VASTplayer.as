@@ -1,4 +1,5 @@
 package com.curvefever.vastplayer {
+  import flash.events.UncaughtErrorEvent;
   import com.hinish.spec.iab.vast.vos.Creative;
   import com.hinish.spec.iab.vast.vos.MediaFile;
   import com.hinish.spec.iab.vast.vos.TrackingEventTypes;
@@ -33,10 +34,14 @@ package com.curvefever.vastplayer {
   /**
    * @author Geert
    */
+  [Event(name="VASTplayer duration", type="com.curvefever.vastplayer.VASTplayer")]
+  [Event(name="VASTplayer skip", type="com.curvefever.vastplayer.VASTplayer")]
+  [Event(name="VASTplayer error", type="com.curvefever.vastplayer.VASTplayer")]
   public class VASTplayer extends Sprite {
     
     public static const DURATION:String = "VASTplayer duration";
     public static const NO_ADS:String = "VASTplayer skip";
+    public static const ERROR:String = "VASTplayer error";
     
     public var autoSkip:int;
     private var _vastManager:VASTManager;
@@ -60,12 +65,14 @@ package com.curvefever.vastplayer {
       TestUtils.log("test");
       
       _vastManager = new VASTManager();
-      _vastManager.addEventListener(VASTManager.LOADED, onLoaded);
-      _vastManager.addEventListener(VASTManager.NOADS, onNoAds);
+      _vastManager.addEventListener(VASTManager.LOADED, onVmLoaded);
+      _vastManager.addEventListener(VASTManager.NOADS, onVmNoAds);
+      _vastManager.addEventListener(VASTManager.ERROR, onVmError);
       
       _appLoader = new Loader();
       _appLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, onAppComplete);
       _appLoader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+      _appLoader.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
       
       _vidHolder = new MovieClip();
       _vidHolder.addEventListener(MouseEvent.CLICK, onClickVideo);
@@ -108,12 +115,16 @@ package com.curvefever.vastplayer {
       
       
     }
-    private function onNoAds(e:Event):void {
+    private function onVmNoAds(e:Event):void {
+      TestUtils.log("player - onVmNoAds");
       dispatchEvent(new Event(NO_ADS));
     }
-    
-    private function onLoaded(e:Event):void {
-      TestUtils.log("player - onLoaded");
+    private function onVmError(e:Event):void {
+      TestUtils.log("player - onVmError");
+      dispatchEvent(new Event(ERROR));
+    }
+    private function onVmLoaded(e:Event):void {
+      TestUtils.log("player - onVmLoaded");
       showvideo();
     }
     private function showvideo():void {
@@ -188,9 +199,14 @@ package com.curvefever.vastplayer {
       _vpaid = _appLoader.content;
       addChild(_appLoader.content);
       
-      _vpaid.handshakeVersion("2.0");
+      /*if ("_adDuration" in _vpaid) {
+        trace("it exists");
+      } else {
+        trace("it doesn't exists");
+      }*/
       
-      _vpaid.initAd(stage.stageWidth, stage.stageHeight, AdViewMode.NORMAL, 500, creative.source.adParameters, stage.frameRate);
+      TestUtils.log("player - onAppComplete: handshake vpaid is " + _vpaid.handshakeVersion("2.0"));
+      
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_LOADED, onAdLoaded);
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_STARTED, onAdStarted);
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_STOPPED, onAdStopped);
@@ -201,7 +217,14 @@ package com.curvefever.vastplayer {
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_VIDEO_THIRD_QUARTILE, onAdVideoEvent);
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_VIDEO_COMPLETE, onAdVideoEvent);
       EventDispatcher(_vpaid).addEventListener(AdEvent.AD_CLICK_THRU, onAdClickThru);
+      EventDispatcher(_vpaid).addEventListener("*", onEverything);
+      _vpaid.initAd(stage.stageWidth, stage.stageHeight, AdViewMode.NORMAL, 500, creative.source.adParameters, stage.frameRate);
+			trace("initAd called");
       
+    }
+    private function onEverything(e:*):void {
+      TestUtils.log("player - onEverything");
+      e=e;
     }
     private function onAdClickThru(e:*):void {
       TestUtils.log("player - onAdClickThru");
@@ -234,6 +257,7 @@ package com.curvefever.vastplayer {
     private function onAdLoaded(e:Event):void {
       TestUtils.log("player - onAdLoaded");
       _vpaid.startAd();
+      trace("start ad called");
     }
     private function onAdStarted(e:Event):void {
       TestUtils.log("player - onAdStarted");
@@ -315,6 +339,10 @@ package com.curvefever.vastplayer {
     }
     
     
+    private function uncaughtErrorHandler(e:UncaughtErrorEvent):void {
+      TestUtils.log("player - uncaughtErrorHandler: "+e.error);
+      dispatchEvent(new Event(ERROR));
+    }
     
     private function finished():void {
       TestUtils.log("player - finished");
@@ -323,10 +351,12 @@ package com.curvefever.vastplayer {
     
     public function close():void {
       TestUtils.log("player - close");
-      _vastManager.removeEventListener(VASTManager.LOADED, onLoaded);
-      _vastManager.removeEventListener(VASTManager.NOADS, onNoAds);
+      _vastManager.removeEventListener(VASTManager.LOADED, onVmLoaded);
+      _vastManager.removeEventListener(VASTManager.NOADS, onVmNoAds);
+      _vastManager.removeEventListener(VASTManager.ERROR, onVmError);
       _appLoader.contentLoaderInfo.removeEventListener(Event.COMPLETE, onAppComplete);
       _appLoader.contentLoaderInfo.removeEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+      _appLoader.uncaughtErrorEvents.removeEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
       _vidHolder.removeEventListener(MouseEvent.CLICK, onClickVideo);
       _ns.removeEventListener(NetStatusEvent.NET_STATUS, onNetStatus);
       _quartileTimer.removeEventListener(TimerEvent.TIMER, onQuartileUpdate);

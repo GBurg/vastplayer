@@ -25,7 +25,7 @@ package com.curvefever.vastplayer {
 			}
 		}
     
-    public static function enableLogging(url:String, txt:TextField):void {
+    public static function enableLogging(url:String, txt:TextField = null):void {
       TestUtils.url = url;
       TestUtils.txt = txt;
     }
@@ -35,7 +35,7 @@ package com.curvefever.vastplayer {
 	      var variables:URLVariables = new URLVariables();
 	      variables.m = (counter++)+""+m;
         trace(variables.m);
-        txt.appendText(variables.m+"\n");
+        if (txt != null) txt.appendText(variables.m+"\n");
 	      var request:URLRequest = new URLRequest(url);
 	      request.data = variables;
 				request.method = URLRequestMethod.POST;

@@ -1,4 +1,5 @@
 package com.curvefever.vastplayer {
+  import flash.system.Security;
   import flash.text.TextField;
   import flash.display.MovieClip;
   /**
@@ -10,6 +11,10 @@ package com.curvefever.vastplayer {
     
     
     public function example() {
+      
+      Security.allowDomain("curvefever.com");
+      Security.allowDomain("ads.curvefever.com");
+      
       stage.color = 0x000000;
 			txt.height = 768;
       txt.width = 200;
